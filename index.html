@@ -251,7 +251,7 @@ function setConnPill(state) {
   const el = document.getElementById('connPill');
   if (state === 'supabase') {
     el.className = 'conn-pill conn-on';
-    el.innerHTML = '<span class="dot2"></span> Supabase 已連接・全隊即時同步';
+    el.innerHTML = '<span class="dot2"></span>Supabase 已連接・全隊即時同步';
   } else if (state === 'claude') {
     el.className = 'conn-pill conn-on';
     el.innerHTML = '<span class="dot2"></span>Claude 共享儲存・全隊同步';
