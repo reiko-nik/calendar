@@ -318,15 +318,6 @@ function fmtDayLabel(iso) {
 
 const WD_ZH = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
 
-function eventGender(e) {
-  if (e.event.indexOf('男子') === 0) return 'M';
-  if (e.event.indexOf('女子') === 0) return 'F';
-  if (e.event.indexOf('混合') === 0 || e.event.indexOf('男女') === 0) return 'X';
-  return 'O';
-}
-const GENDER_ORDER = { M: 0, F: 1, X: 2, O: 3 };
-const GENDER_LABEL = { M: '男子', F: '女子', X: '混合', O: '' };
-
 function renderGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
@@ -342,13 +333,7 @@ function renderGrid() {
     ? events.filter(e => e.people.some(p => activeFilter.has(p)))
     : events;
   visibleEvents.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
-  // Group by gender first (so a long mixed-gender day doesn't interleave men's
-  // and women's sessions), then chronologically within each gender group.
-  Object.values(byDate).forEach(list => list.sort((a, b) => {
-    const ga = GENDER_ORDER[eventGender(a)], gb = GENDER_ORDER[eventGender(b)];
-    if (ga !== gb) return ga - gb;
-    return (a.time || '').localeCompare(b.time || '');
-  }));
+  Object.values(byDate).forEach(list => list.sort((a, b) => (a.time || '').localeCompare(b.time || '')));
 
   DAYS.forEach((iso, idx) => {
     const cell = document.createElement('div');
@@ -362,21 +347,7 @@ function renderGrid() {
 
     const evWrap = document.createElement('div');
     evWrap.className = 'events';
-    // Only add gender sub-headers when this day genuinely mixes more than one
-    // gender group — for the (common) single-gender day it would just be noise.
-    const gendersPresent = new Set(list.map(eventGender));
-    let lastGender = null;
-    list.forEach(e => {
-      const g = eventGender(e);
-      if (gendersPresent.size > 1 && g !== lastGender && GENDER_LABEL[g]) {
-        const gh = document.createElement('div');
-        gh.className = 'gender-head';
-        gh.textContent = GENDER_LABEL[g];
-        evWrap.appendChild(gh);
-      }
-      lastGender = g;
-      evWrap.appendChild(renderEventCard(e));
-    });
+    list.forEach(e => evWrap.appendChild(renderEventCard(e)));
     cell.appendChild(evWrap);
 
     const addBtn = document.createElement('button');
