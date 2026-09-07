@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>名古屋亞運2026 拍攝及採訪統籌日曆</title>
+<title>名古屋亞運2026 攝影及採訪統籌日曆</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
@@ -32,7 +32,17 @@
   .legend-item {
     display: flex; align-items: center; gap: 6px; font-size: 12.5px;
     background: rgba(255,255,255,0.14); padding: 4px 10px 4px 6px; border-radius: 999px;
+    border: 1.5px solid transparent; color: #fff; cursor: pointer; font-family: inherit;
+    transition: background 0.12s, opacity 0.12s;
   }
+  .legend-item:hover { background: rgba(255,255,255,0.24); }
+  .legend-item.active { background: rgba(255,255,255,0.92); color: #2E2E38; border-color: #fff; font-weight: 600; }
+  .legend-item.dimmed { opacity: 0.45; }
+  .legend-clear {
+    font-size: 11.5px; color: rgba(255,255,255,0.85); text-decoration: underline; cursor: pointer;
+    background: none; border: none; padding: 4px 2px; font-family: inherit;
+  }
+  .legend-clear:hover { color: #fff; }
   .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
   .cal-wrap {
     max-height: calc(100vh - 118px);
@@ -152,7 +162,7 @@
 <div class="topbar">
   <div class="toprow">
     <div>
-      <h1>名古屋亞運2026｜拍攝及採訪統籌日曆 <span class="conn-pill conn-off" id="connPill"><span class="dot2"></span>檢查連線中…</span></h1>
+      <h1>名古屋亞運2026｜攝影及採訪統籌日曆 <span class="conn-pill conn-off" id="connPill"><span class="dot2"></span>檢查連線中…</span></h1>
       <div class="sub">9月14日（一）至10月4日（日）／ 資料來源：香港代表隊賽程總表（繁體中文版）</div>
     </div>
     <span class="reset-link" onclick="resetAll()">重設為原始名單</span>
@@ -250,11 +260,31 @@ let seq = 100000;
 
 function personColor(p) { return (PEOPLE[p] && PEOPLE[p].color) || '#999'; }
 
+let activeFilter = new Set(); // empty = show everyone
+
 function renderLegend() {
   const el = document.getElementById('legend');
-  el.innerHTML = Object.keys(PEOPLE).map(p =>
-    `<div class="legend-item"><span class="dot" style="background:${PEOPLE[p].color}"></span>${PEOPLE[p].label_zh}</div>`
-  ).join('');
+  el.innerHTML = Object.keys(PEOPLE).map(p => {
+    const isActive = activeFilter.has(p);
+    const isDimmed = activeFilter.size > 0 && !isActive;
+    return `<button type="button" class="legend-item ${isActive ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}" data-person="${p}">` +
+           `<span class="dot" style="background:${PEOPLE[p].color}"></span>${PEOPLE[p].label_zh}</button>`;
+  }).join('') + (activeFilter.size > 0 ? `<button type="button" class="legend-clear" id="clearFilterBtn">顯示全部同事</button>` : '');
+
+  el.querySelectorAll('.legend-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.person;
+      if (activeFilter.has(p)) activeFilter.delete(p); else activeFilter.add(p);
+      renderLegend();
+      renderGrid();
+    });
+  });
+  const clearBtn = document.getElementById('clearFilterBtn');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    activeFilter.clear();
+    renderLegend();
+    renderGrid();
+  });
 }
 
 function setConnPill(state) {
@@ -293,7 +323,10 @@ function renderGrid() {
   });
 
   const byDate = {};
-  events.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+  const visibleEvents = activeFilter.size > 0
+    ? events.filter(e => e.people.some(p => activeFilter.has(p)))
+    : events;
+  visibleEvents.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
   Object.values(byDate).forEach(list => list.sort((a,b) => (a.time||'').localeCompare(b.time||'')));
 
   DAYS.forEach((iso, idx) => {
@@ -352,8 +385,8 @@ function openModal(iso, existing) {
   document.getElementById('fAthletes').value = existing ? existing.athletes : '';
   const pc = document.getElementById('peopleCheck');
   pc.innerHTML = Object.keys(PEOPLE).map(p => {
-    const checked = existing && existing.people.includes(p) ? 'checked' : '';
-    return `<label><input type="checkbox" value="${p}" ${checked}> <span style="color:${PEOPLE[p].color}">●</span> ${p}</label>`;
+    const checked = existing ? existing.people.includes(p) : (activeFilter.size === 1 && activeFilter.has(p));
+    return `<label><input type="checkbox" value="${p}" ${checked ? 'checked' : ''}> <span style="color:${PEOPLE[p].color}">●</span> ${p}</label>`;
   }).join('');
   document.getElementById('overlay').classList.add('show');
   document.getElementById('overlay').dataset.date = iso;
