@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>名古屋亞運2026 採訪統籌日曆</title>
+<title>名古屋亞運2026 香港隊採訪統籌日曆</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
@@ -216,6 +216,16 @@ if (HAS_SUPABASE_CFG) {
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
+// Only these columns exist in the calendar_events table — strip anything
+// else (e.g. legacy 'time_full') before sending to Supabase.
+function toDbRow(e) {
+  return {
+    id: e.id, date: e.date, time: e.time || '', discipline: e.discipline,
+    event: e.event, athletes: e.athletes || '', venue: e.venue || '',
+    people: e.people || [],
+  };
+}
+
 async function storageGet(key) {
   if (HAS_CLAUDE_STORAGE) {
     try { return await window.storage.get(key, true); }
@@ -368,7 +378,7 @@ async function saveModal() {
 
   if (HAS_SUPABASE_CFG) {
     const msg = document.getElementById('statusMsg');
-    const { error } = await sb.from(SUPABASE_TABLE).upsert(payload, { onConflict: 'id' });
+    const { error } = await sb.from(SUPABASE_TABLE).upsert(toDbRow(payload), { onConflict: 'id' });
     if (error) { msg.textContent = '儲存失敗：' + error.message; return; }
     // realtime subscription will refresh the grid for everyone (incl. us)
   } else {
@@ -414,7 +424,7 @@ async function resetAll() {
     msg.textContent = '正在重設，請稍候…';
     const { error: delErr } = await sb.from(SUPABASE_TABLE).delete().neq('id', '__never__');
     if (delErr) { msg.textContent = '重設失敗：' + delErr.message; return; }
-    const { error: insErr } = await sb.from(SUPABASE_TABLE).insert(BASE_EVENTS);
+    const { error: insErr } = await sb.from(SUPABASE_TABLE).insert(BASE_EVENTS.map(toDbRow));
     if (insErr) { msg.textContent = '重設失敗：' + insErr.message; return; }
     msg.textContent = '已重設 ✓';
   } else {
@@ -441,7 +451,7 @@ async function seedSupabaseIfEmpty() {
   const { count, error } = await sb.from(SUPABASE_TABLE).select('*', { count: 'exact', head: true });
   if (error) return false;
   if (count === 0) {
-    const { error: insErr } = await sb.from(SUPABASE_TABLE).insert(BASE_EVENTS);
+    const { error: insErr } = await sb.from(SUPABASE_TABLE).insert(BASE_EVENTS.map(toDbRow));
     if (insErr) {
       document.getElementById('statusMsg').textContent = '初始化資料表失敗：' + insErr.message;
       return false;
